@@ -154,3 +154,7 @@ figs
 envs/
 tools/quant
 **/quant
+
+
+exp/
+*.zip
