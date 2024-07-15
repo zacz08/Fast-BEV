@@ -17,7 +17,7 @@ if mmdet3d_root is not None and osp.exists(mmdet3d_root):
     sys.path.insert(0, mmdet3d_root)
     print(f"using mmdet3d: {mmdet3d_root}")
 
-from mmdet3d.apis import single_gpu_test, multi_gpu_test
+# from mmdet3d.apis import single_gpu_test, multi_gpu_test
 from mmdet3d.datasets import build_dataloader, build_dataset
 from mmdet3d.models import build_model
 from mmdet.apis import  set_random_seed
