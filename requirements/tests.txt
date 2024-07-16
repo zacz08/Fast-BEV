@@ -10,4 +10,5 @@ pytest-cov
 pytest-runner
 ubelt
 xdoctest >= 0.10.0
-yapf
+yapf==0.40.1
+setuptools==58.0.4
