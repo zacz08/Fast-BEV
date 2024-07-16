@@ -1,3 +1,19 @@
+# Environment setting
+
+```Shell
+conda create -n fastbev python=3.8 -y
+conda activate fastbev
+pip install torch==1.10.0+cu113 torchvision==0.11.0+cu113 torchaudio==0.10.0 -f https://download.pytorch.org/whl/torch_stable.html
+pip install mmcv-full==1.4.0 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html
+pip install mmdet==2.14.0
+pip install mmsegmentation==0.14.1
+git clone https://github.com/zacz08/Fast-BEV.git
+cd Fast-BEV
+pip install -v -e .
+pip install ipdb
+pip install timm
+```
+
 # Fast-BEV
 
 [Fast-BEV: A Fast and Strong Bird’s-Eye View Perception Baseline](https://arxiv.org/abs/2301.12511)
