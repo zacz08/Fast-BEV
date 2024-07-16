@@ -159,3 +159,5 @@ tools/quant
 exp/
 *.zip
 results/
+work_dir/
+train_result/
