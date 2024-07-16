@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 T=`date +%m%d%H%M`
 
-WORK_DIR=${WORK_DIR:-/home/zc/Fast-BEV}
+WORK_DIR=${WORK_DIR:-/home/zc/Downloads/Fast-BEV}
 echo work_dirs: $WORK_DIR
 
 START_TIME=`date +%Y%m%d-%H:%M:%S`
@@ -18,8 +18,7 @@ function test {
     echo CONFIG: $CONFIG
 
     PYTHONPATH="$(dirname "$0")/..":$PYTHONPATH \
-    python -m torch.distributed.launch \
-    # torchrun \
+    torchrun \
         --nproc_per_node=$GPUS_PER_NODE \
         $(dirname "$0")/test.py \
         $CONFIG \
@@ -42,7 +41,7 @@ function evaluation {
     echo CONFIG: $CONFIG
 
     PYTHONPATH="$(dirname "$0")/..":$PYTHONPATH \
-    python -m torch.distributed.launch \
+    torchrun \
         --nproc_per_node=$GPUS_PER_NODE \
         $(dirname "$0")/eval.py \
         $CONFIG \
