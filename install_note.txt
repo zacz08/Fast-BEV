@@ -14,17 +14,16 @@ pip install timm
 
 
 
-### high version setting
+### worked high version setting
 
-conda create -n fastbev2 python=3.8 -y
-conda activate fastbev2
-conda install pytorch==1.10.0 torchvision==0.11.0 torchaudio==0.10.0 cudatoolkit=11.3 -c pytorch -c conda-forge
+conda create -n fastbev python=3.8 -y
+conda activate fastbev
 pip install torch==1.10.0+cu113 torchvision==0.11.0+cu113 torchaudio==0.10.0 -f https://download.pytorch.org/whl/torch_stable.html
-
 pip install mmcv-full==1.4.0 -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.10.0/index.html
 pip install mmdet==2.14.0
 pip install mmsegmentation==0.14.1
+git clone https://github.com/zacz08/Fast-BEV.git
 cd Fast-BEV
-pip install -r requirements.txt
+pip install -v -e .
 pip install ipdb
 pip install timm
