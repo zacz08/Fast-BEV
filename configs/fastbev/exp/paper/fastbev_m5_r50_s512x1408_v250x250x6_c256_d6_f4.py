@@ -203,6 +203,11 @@ test_pipeline = [
     dict(type='DefaultFormatBundle3D', class_names=class_names, with_label=False),
     dict(type='Collect3D', keys=['img'])]
 
+# imgs_per_gpu = samples_per_gpu
+    # samples_per_gpu (int): Number of training samples on each GPU, i.e.,
+    #     batch size of each GPU.
+    # workers_per_gpu (int): How many subprocesses to use for data loading
+    #     for each GPU.
 data = dict(
     samples_per_gpu=1,
     workers_per_gpu=1,
@@ -312,6 +317,13 @@ log_level = 'INFO'
 
 load_from = 'pretrained_models/cascade_mask_rcnn_r50_fpn_coco-mstrain_3x_20e_nuim_bbox_mAP_0.5400_segm_mAP_0.4300.pth'
 resume_from = None
+
+"""
+workflow (list[tuple]): A list of (phase, epochs) to specify the
+    running order and epochs. E.g, [('train', 2), ('val', 1)] means
+    running 2 epochs for training and 1 epoch for validation,
+    iteratively.
+"""
 workflow = [('train', 1)]
 
 # fp16 settings, the loss scale is specifically tuned to avoid Nan
