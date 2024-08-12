@@ -117,12 +117,8 @@ class FastBEV(BaseDetector):
 
     def extract_feat(self, img, img_metas, mode):
         batch_size = img.shape[0]
-        img = img.reshape(
-            [-1] + list(img.shape)[2:]
-        )  # [1, 6, 3, 928, 1600] -> [6, 3, 928, 1600]
-        x = self.backbone(
-            img
-        )  # [6, 256, 232, 400]; [6, 512, 116, 200]; [6, 1024, 58, 100]; [6, 2048, 29, 50]
+        img = img.reshape([-1] + list(img.shape)[2:])  # [1, 6, 3, 928, 1600] -> [6, 3, 928, 1600]
+        x = self.backbone(img)  # [6, 256, 232, 400]; [6, 512, 116, 200]; [6, 1024, 58, 100]; [6, 2048, 29, 50]
 
         # use for vovnet
         if isinstance(x, dict):
@@ -131,7 +127,7 @@ class FastBEV(BaseDetector):
                 tmp.append(x[k])
             x = tmp
 
-        # fuse features
+        # fuse features with image neck
         def _inner_forward(x):
             out = self.neck(x)
             return out  # [6, 64, 232, 400]; [6, 64, 116, 200]; [6, 64, 58, 100]; [6, 64, 29, 50])
@@ -151,7 +147,8 @@ class FastBEV(BaseDetector):
             for msid in self.multi_scale_id:
                 # fpn output fusion
                 if getattr(self, f'neck_fuse_{msid}', None) is not None:
-                    fuse_feats = [mlvl_feats[msid]]
+                    fuse_feats = [mlvl_feats[msid]] # get the largest scale feature layer
+                    # resize low resolution features to the largest scale
                     for i in range(msid + 1, len(mlvl_feats)):
                         resized_feat = resize(
                             mlvl_feats[i], 
@@ -176,7 +173,8 @@ class FastBEV(BaseDetector):
                 mlvl_feats.append(mlvl_feats[0])
 
         mlvl_volumes = []
-        for lvl, mlvl_feat in enumerate(mlvl_feats):  
+        for lvl, mlvl_feat in enumerate(mlvl_feats): 
+            # The ratio between the original image and the current feature map 
             stride_i = math.ceil(img.shape[-1] / mlvl_feat.shape[-1])  # P4 880 / 32 = 27.5
             # [bs*seq*nv, c, h, w] -> [bs, seq*nv, c, h, w]
             mlvl_feat = mlvl_feat.reshape([batch_size, -1] + list(mlvl_feat.shape[1:]))
@@ -184,6 +182,7 @@ class FastBEV(BaseDetector):
             mlvl_feat_split = torch.split(mlvl_feat, 6, dim=1)
 
             volume_list = []
+            # Traverse 6 surround image features
             for seq_id in range(len(mlvl_feat_split)):
                 volumes = []
                 for batch_id, seq_img_meta in enumerate(img_metas):
@@ -204,15 +203,21 @@ class FastBEV(BaseDetector):
                     else:
                         # v3/v4 bev ms
                         n_voxels, voxel_size = self.n_voxels[lvl], self.voxel_size[lvl]
+                    
+                    # generate BEV voxels in ego coordinate based on voxel setting
                     points = get_points(  # [3, vx, vy, vz]
                         n_voxels=torch.tensor(n_voxels),
                         voxel_size=torch.tensor(voxel_size),
                         origin=torch.tensor(img_meta["lidar2img"]["origin"]),
                     ).to(feat_i.device)
 
+                    # fill voxels with 2D features
                     if self.backproject == 'inplace':
                         volume = backproject_inplace(
-                            feat_i[:, :, :height, :width], points, projection)  # [c, vx, vy, vz]
+                            feat_i[:, :, :height, :width], # 2D feature map
+                            points,     # voxels cloud with shape [c, vx, vy, vz]
+                            projection  # projection matrix
+                            )
                     else:
                         volume, valid = backproject_vanilla(
                             feat_i[:, :, :height, :width], points, projection)
@@ -518,13 +523,16 @@ def backproject_inplace(features, points, projection):
     '''
     n_images, n_channels, height, width = features.shape
     n_x_voxels, n_y_voxels, n_z_voxels = points.shape[-3:]
+
     # [3, 200, 200, 12] -> [1, 3, 480000] -> [6, 3, 480000]
     points = points.view(1, 3, -1).expand(n_images, 3, -1)
+
     # [6, 3, 480000] -> [6, 4, 480000]
     points = torch.cat((points, torch.ones_like(points[:, :1])), dim=1)
-    # ego_to_cam
+
+    # ego_to_cam / lidar frame -> image frame
     # [6, 3, 4] * [6, 4, 480000] -> [6, 3, 480000]
-    points_2d_3 = torch.bmm(projection, points)  # lidar2img
+    points_2d_3 = torch.bmm(projection, points) 
     x = (points_2d_3[:, 0] / points_2d_3[:, 2]).round().long()  # [6, 480000]
     y = (points_2d_3[:, 1] / points_2d_3[:, 2]).round().long()  # [6, 480000]
     z = points_2d_3[:, 2]  # [6, 480000]
@@ -533,9 +541,14 @@ def backproject_inplace(features, points, projection):
     # method2：特征填充，只填充有效特征，重复特征直接覆盖
     volume = torch.zeros(
         (n_channels, points.shape[-1]), device=features.device
-    ).type_as(features)
+    ).type_as(features) # volume shape [64, 480000]
+
+    # fill volume with valid features from each image
     for i in range(n_images):
+        # [64, 480000] = [64, height, width]
+        # valid[i]: [480000]
         volume[:, valid[i]] = features[i, :, y[i, valid[i]], x[i, valid[i]]]
 
+    # [64, 480000] -> [64, 200, 200, 12]
     volume = volume.view(n_channels, n_x_voxels, n_y_voxels, n_z_voxels)
     return volume
